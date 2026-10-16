@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Traits\HasCustomUuid;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class CompanyProfile extends Model
+{
+    use HasCustomUuid, HasFactory;
+
+    protected $fillable = [
+        'uuid',
+        'namaPerusahaan',
+        'alamatPerusahan',
+        'nomorTeleponPerusahaan',
+        'emailPerusahaan',
+        'websitePerusahaan',
+        'instagram',
+        'tiktok',
+        'treads',
+        'facebook',
+    ];
+}
