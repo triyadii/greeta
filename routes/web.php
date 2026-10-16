@@ -12,8 +12,18 @@ use App\Http\Controllers\Admin\VisiMisiController;
 use App\Http\Controllers\Admin\VisitorController;
 use App\Http\Controllers\Admin\WilayahController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DeployController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
+
+// Deployment & Maintenance utility routes (accessible when SSH is not available in production)
+Route::controller(DeployController::class)->group(function () {
+    Route::get('/git-pull', 'gitPull')->name('deploy.git-pull');
+    Route::get('/run-git-pull', 'gitPull');
+    Route::get('/migrate', 'migrate')->name('deploy.migrate');
+    Route::get('/run-migrate', 'migrate');
+    Route::get('/run-seed', 'seed')->name('deploy.seed');
+});
 
 // Public Landing Page, Portfolio Catalog, News, & Inquiry Submission
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -29,7 +39,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // Admin panel routes (requires authentication)
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn() => redirect()->route('admin.dashboard'));
+    Route::get('/', fn () => redirect()->route('admin.dashboard'));
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // 1. Menu & Akses

@@ -11,8 +11,8 @@
         <!--begin::Profile Overview Card-->
         <div class="card card-flush h-xl-100 shadow-sm">
             <div class="card-body text-center pt-9 pb-5">
-                <div class="symbol symbol-100px symbol-circle mb-5 border border-primary border-3 p-1">
-                    <img src="https://lh3.googleusercontent.com/aida/AEtjO1X9E2w3eu5Tp-5nDqWqkfn3Pb3EncTNdUDnPDluLQb7x9o1MEA53AqEBwOwY0ein5ym31YytcUF50c6cIoKcxlYWh0KeZFnS5XBr793pphLUpYCiBWL8hssy0EyIxiiOxgLBmt7BSp5bBcFhvpq3XtPk8Sdm9FYPvfQeuTPCzB80PKGjUoU7X9x3UXcC4Oj813d1vfaHAQufwCfPIkm_BczratuU56bUo_p4tLKo_8a1i-kKGDks6bJSmxF" alt="Logo" class="rounded-circle object-fit-contain" />
+                <div class="symbol symbol-120px symbol-circle mb-5 border border-primary border-3 p-1 bg-light">
+                    <img src="{{ $profile->logo_url }}" alt="Logo {{ $profile->namaPerusahaan ?? 'Perusahaan' }}" class="rounded-circle object-fit-contain w-100 h-100" id="overview_logo_img" />
                 </div>
                 <h2 class="text-gray-900 fw-bold mb-1">{{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}</h2>
                 <div class="text-muted fw-semibold mb-6">Solusi Teknologi Informasi &amp; Digital Terpadu</div>
@@ -30,7 +30,7 @@
 
                 <button type="button" class="btn btn-primary w-100" onclick="openEditModal()">
                     <i class="ki-duotone ki-pencil fs-2 me-1"><span class="path1"></span><span class="path2"></span></i>
-                    Edit Profil Perusahaan
+                    Edit Profil &amp; Logo Perusahaan
                 </button>
             </div>
         </div>
@@ -45,7 +45,7 @@
             <div class="card-header pt-7">
                 <h3 class="card-title align-items-start flex-column">
                     <span class="card-label fw-bold text-gray-900 fs-4">Informasi Lengkap Perusahaan</span>
-                    <span class="text-muted mt-1 fw-semibold fs-7">Detail kontak, alamat fisik, dan kanal media sosial</span>
+                    <span class="text-muted mt-1 fw-semibold fs-7">Detail logo, kontak, alamat fisik, dan kanal media sosial</span>
                 </h3>
                 <div class="card-toolbar">
                     <span class="badge badge-light-primary fw-bold font-monospace">UUID: {{ $profile->uuid ?? 'N/A' }}</span>
@@ -56,6 +56,22 @@
                 <div class="table-responsive">
                     <table class="table align-middle table-row-bordered fs-6 gy-4">
                         <tbody>
+                            <tr>
+                                <td class="text-gray-500 fw-bold w-200px">Logo Perusahaan</td>
+                                <td class="text-gray-900">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="border rounded p-1 bg-light d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+                                            <img src="{{ $profile->logo_url }}" alt="Logo" class="mw-100 mh-100 object-fit-contain" />
+                                        </div>
+                                        <div>
+                                            <span class="badge {{ $profile->logo ? 'badge-light-success' : 'badge-light-primary' }} fw-bold">
+                                                {{ $profile->logo ? 'Logo Kustom Diunggah' : 'Logo Bawaan (Default)' }}
+                                            </span>
+                                            <div class="text-muted fs-8 mt-1">Muncul di header, footer website publik, dan sidebar admin</div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
                             <tr>
                                 <td class="text-gray-500 fw-bold w-200px">Nama Perusahaan</td>
                                 <td class="text-gray-900 fw-bolder">{{ $profile->namaPerusahaan ?? '-' }}</td>
@@ -130,14 +146,49 @@
     <div class="modal-dialog modal-dialog-centered mw-750px">
         <div class="modal-content">
             <div class="modal-header" id="kt_modal_profil_header">
-                <h2 class="fw-bold">Edit Profil Perusahaan</h2>
+                <h2 class="fw-bold">Edit Profil &amp; Logo Perusahaan</h2>
                 <div class="btn btn-icon btn-sm btn-active-icon-primary" data-bs-dismiss="modal">
                     <i class="ki-duotone ki-cross fs-1"><span class="path1"></span><span class="path2"></span></i>
                 </div>
             </div>
 
-            <form id="form_profil" class="form">
+            <form id="form_profil" class="form" enctype="multipart/form-data">
                 <div class="modal-body py-10 px-lg-17 scroll-y" style="max-height: 70vh;">
+                    
+                    <!-- Logo Perusahaan Upload & Preview -->
+                    <div class="fv-row mb-8 text-center">
+                        <label class="d-block fw-semibold fs-6 mb-3">Logo Perusahaan</label>
+                        <div class="d-flex flex-column align-items-center">
+                            <div class="position-relative d-inline-block mb-3">
+                                <div class="w-130px h-130px rounded-circle border border-2 border-primary p-2 bg-light d-flex align-items-center justify-content-center overflow-hidden shadow-sm">
+                                    <img id="logo_preview_img" src="{{ $profile->logo_url }}" alt="Preview Logo" class="w-100 h-100 object-fit-contain" />
+                                </div>
+                                <label class="btn btn-icon btn-circle btn-active-color-primary w-35px h-35px bg-body shadow position-absolute bottom-0 end-0 translate-middle-y cursor-pointer" data-bs-toggle="tooltip" title="Pilih File Logo Baru">
+                                    <i class="ki-duotone ki-pencil fs-4 text-primary"><span class="path1"></span><span class="path2"></span></i>
+                                    <input type="file" name="logo" id="logo" class="d-none" accept=".png, .jpg, .jpeg, .webp, .svg" onchange="handleLogoChange(this)" />
+                                </label>
+                            </div>
+
+                            <input type="hidden" name="remove_logo" id="remove_logo" value="0" />
+
+                            <div class="d-flex gap-2">
+                                <label for="logo" class="btn btn-sm btn-light-primary">
+                                    <i class="ki-duotone ki-file-up fs-5 me-1"><span class="path1"></span><span class="path2"></span></i>
+                                    Unggah Logo Baru
+                                </label>
+                                <button type="button" class="btn btn-sm btn-light-danger" id="btn_remove_logo" onclick="handleRemoveLogo()">
+                                    <i class="ki-duotone ki-trash fs-5 me-1"><span class="path1"></span><span class="path2"></span></i>
+                                    Reset ke Default
+                                </button>
+                            </div>
+                            <div class="form-text fs-7 mt-2 text-muted">
+                                Format: PNG, JPG, JPEG, WEBP, atau SVG. Ukuran maks 2MB. Disarankan berlatar transparan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="separator separator-dashed my-6"></div>
+
                     <!-- Nama Perusahaan -->
                     <div class="fv-row mb-7">
                         <label class="required fs-6 fw-semibold mb-2">Nama Perusahaan</label>
@@ -214,9 +265,45 @@
     const profilModal = new bootstrap.Modal(profilModalEl);
     const formProfil = document.getElementById('form_profil');
     const btnSubmitProfil = document.getElementById('btn_submit_profil');
+    
+    const defaultLogoUrl = '{{ \App\Models\CompanyProfile::DEFAULT_LOGO }}';
+    const initialLogoUrl = '{{ $profile->logo_url }}';
+    const logoPreviewImg = document.getElementById('logo_preview_img');
+    const removeLogoInput = document.getElementById('remove_logo');
+    const logoInput = document.getElementById('logo');
 
     function openEditModal() {
         profilModal.show();
+    }
+
+    function handleLogoChange(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if (file.size > 2 * 1024 * 1024) {
+                Swal.fire('File Terlalu Besar', 'Ukuran logo maksimal adalah 2MB.', 'warning');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                logoPreviewImg.src = e.target.result;
+                removeLogoInput.value = '0';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function handleRemoveLogo() {
+        logoInput.value = '';
+        removeLogoInput.value = '1';
+        logoPreviewImg.src = defaultLogoUrl;
+        Swal.fire({
+            icon: 'info',
+            title: 'Logo Direset',
+            text: 'Logo akan dikembalikan ke logo bawaan setelah Anda mengklik Simpan Perubahan.',
+            timer: 2000,
+            showConfirmButton: false
+        });
     }
 
     formProfil.addEventListener('submit', async function(e) {
@@ -224,27 +311,16 @@
         btnSubmitProfil.setAttribute('data-kt-indicator', 'on');
         btnSubmitProfil.disabled = true;
 
-        const payload = {
-            namaPerusahaan: document.getElementById('namaPerusahaan').value,
-            alamatPerusahan: document.getElementById('alamatPerusahan').value,
-            nomorTeleponPerusahaan: document.getElementById('nomorTeleponPerusahaan').value,
-            emailPerusahaan: document.getElementById('emailPerusahaan').value,
-            websitePerusahaan: document.getElementById('websitePerusahaan').value,
-            instagram: document.getElementById('instagram').value,
-            tiktok: document.getElementById('tiktok').value,
-            treads: document.getElementById('treads').value,
-            facebook: document.getElementById('facebook').value,
-        };
+        const formData = new FormData(formProfil);
 
         try {
             const response = await fetch(`{{ route('admin.profil.store') }}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify(payload)
+                body: formData
             });
 
             const result = await response.json();
@@ -262,7 +338,7 @@
                 Swal.fire('Validasi Gagal', errors, 'warning');
             }
         } catch (err) {
-            Swal.fire('Error', 'Terjadi kesalahan sistem', 'error');
+            Swal.fire('Error', 'Terjadi kesalahan sistem saat menyimpan data', 'error');
         } finally {
             btnSubmitProfil.removeAttribute('data-kt-indicator');
             btnSubmitProfil.disabled = false;

@@ -59,7 +59,7 @@
                     <!--begin::Mobile logo-->
                     <div class="d-flex align-items-center flex-grow-1 flex-lg-grow-0">
                         <a href="{{ route('admin.dashboard') }}" class="d-lg-none">
-                            <img alt="Logo" src="https://lh3.googleusercontent.com/aida/AEtjO1X9E2w3eu5Tp-5nDqWqkfn3Pb3EncTNdUDnPDluLQb7x9o1MEA53AqEBwOwY0ein5ym31YytcUF50c6cIoKcxlYWh0KeZFnS5XBr793pphLUpYCiBWL8hssy0EyIxiiOxgLBmt7BSp5bBcFhvpq3XtPk8Sdm9FYPvfQeuTPCzB80PKGjUoU7X9x3UXcC4Oj813d1vfaHAQufwCfPIkm_BczratuU56bUo_p4tLKo_8a1i-kKGDks6bJSmxF" class="h-30px" />
+                            <img alt="Logo" src="{{ $companyProfile?->logo_url ?? \App\Models\CompanyProfile::DEFAULT_LOGO }}" class="h-30px object-fit-contain" />
                         </a>
                     </div>
                     <!--end::Mobile logo-->
@@ -177,7 +177,7 @@
                     <!--begin::Logo-->
                     <div class="app-sidebar-logo px-6" id="kt_app_sidebar_logo">
                         <a href="{{ route('admin.dashboard') }}" class="d-flex align-items-center">
-                            <img alt="Logo" src="https://lh3.googleusercontent.com/aida/AEtjO1X9E2w3eu5Tp-5nDqWqkfn3Pb3EncTNdUDnPDluLQb7x9o1MEA53AqEBwOwY0ein5ym31YytcUF50c6cIoKcxlYWh0KeZFnS5XBr793pphLUpYCiBWL8hssy0EyIxiiOxgLBmt7BSp5bBcFhvpq3XtPk8Sdm9FYPvfQeuTPCzB80PKGjUoU7X9x3UXcC4Oj813d1vfaHAQufwCfPIkm_BczratuU56bUo_p4tLKo_8a1i-kKGDks6bJSmxF" class="h-35px app-sidebar-logo-default" />
+                            <img alt="Logo" src="{{ $companyProfile?->logo_url ?? \App\Models\CompanyProfile::DEFAULT_LOGO }}" class="h-35px app-sidebar-logo-default object-fit-contain" />
                         </a>
                         <div id="kt_app_sidebar_toggle" class="app-sidebar-toggle btn btn-icon btn-shadow btn-sm btn-color-muted btn-active-color-primary h-30px w-30px position-absolute top-50 start-100 translate-middle rotate" data-kt-toggle="true" data-kt-toggle-state="active" data-kt-toggle-target="body" data-kt-toggle-name="app-sidebar-minimize">
                             <i class="ki-duotone ki-black-left-line fs-3 rotate-180">
@@ -315,6 +315,34 @@
                                             <span class="menu-title">Manajemen Visitor (IP)</span>
                                         </a>
                                     </div>
+
+                                    @if(Auth::user()?->role?->namaRole === 'Superadmin')
+                                    <div class="menu-item pt-5">
+                                        <div class="menu-content"><span class="menu-heading fw-bold text-uppercase fs-7">Pemeliharaan &amp; Deploy</span></div>
+                                    </div>
+
+                                    <!-- Git Pull -->
+                                    <div class="menu-item">
+                                        <a class="menu-link" href="{{ route('deploy.git-pull') }}" target="_blank">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-cloud-download fs-2 text-primary"><span class="path1"></span><span class="path2"></span></i>
+                                            </span>
+                                            <span class="menu-title">Git Pull (Update Kode)</span>
+                                            <span class="badge badge-light-primary fs-8">SSH Free</span>
+                                        </a>
+                                    </div>
+
+                                    <!-- Migrate -->
+                                    <div class="menu-item">
+                                        <a class="menu-link" href="{{ route('deploy.migrate') }}" target="_blank">
+                                            <span class="menu-icon">
+                                                <i class="ki-duotone ki-data fs-2 text-success"><span class="path1"></span><span class="path2"></span></i>
+                                            </span>
+                                            <span class="menu-title">Database Migrate</span>
+                                            <span class="badge badge-light-success fs-8">Artisan</span>
+                                        </a>
+                                    </div>
+                                    @endif
 
                                 </div>
                             </div>

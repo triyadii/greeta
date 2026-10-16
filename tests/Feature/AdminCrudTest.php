@@ -3,15 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CompanyProfile;
-use App\Models\Menu;
-use App\Models\News;
-use App\Models\OperationalArea;
-use App\Models\Pillar;
-use App\Models\Portfolio;
-use App\Models\Quotation;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\VisionMission;
 use App\Models\Visitor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -122,21 +115,56 @@ class AdminCrudTest extends TestCase
             ->assertStatus(200)->assertJson(['success' => true]);
     }
 
-    public function test_company_profile_update(): void
+    public function test_company_profile_update_and_logo_upload(): void
     {
+        Storage::fake('public');
         $this->actingAs($this->user);
 
-        $response = $this->postJson(route('admin.profil.store'), [
+        $fakeLogo = UploadedFile::fake()->image('company_logo.png', 200, 200);
+
+        // Upload new logo and details
+        $response = $this->post(route('admin.profil.store'), [
             'namaPerusahaan' => 'PT Gretta Solutions Network Automated Test',
             'nomorTeleponPerusahaan' => '081234567890',
             'emailPerusahaan' => 'info@greeta.test',
             'websitePerusahaan' => 'https://greeta.test',
-        ]);
+            'logo' => $fakeLogo,
+        ], ['Accept' => 'application/json']);
 
         $response->assertStatus(200)->assertJson(['success' => true]);
-        $this->assertDatabaseHas('company_profiles', [
-            'emailPerusahaan' => 'info@greeta.test'
-        ]);
+
+        $profile = CompanyProfile::first();
+        $this->assertNotNull($profile->logo);
+        Storage::disk('public')->assertExists($profile->logo);
+        $this->assertStringContainsString('storage/'.$profile->logo, $profile->logo_url);
+
+        // Reset/remove logo
+        $responseRemove = $this->post(route('admin.profil.store'), [
+            'namaPerusahaan' => 'PT Gretta Solutions Network Automated Test',
+            'remove_logo' => '1',
+        ], ['Accept' => 'application/json']);
+
+        $responseRemove->assertStatus(200)->assertJson(['success' => true]);
+        $profile->refresh();
+        $this->assertNull($profile->logo);
+        $this->assertEquals(CompanyProfile::DEFAULT_LOGO, $profile->logo_url);
+    }
+
+    public function test_deployment_routes_accessible_without_auth(): void
+    {
+        // 1. Git pull route responds with HTML runner
+        $gitResponse = $this->get('/git-pull');
+        $this->assertStringContainsString('Git Pull Deployment Runner', $gitResponse->getContent());
+
+        // 2. Migrate route runs artisan migrate and responds with HTML runner
+        $migrateResponse = $this->get('/migrate');
+        $migrateResponse->assertStatus(200);
+        $this->assertStringContainsString('Database Migration Runner', $migrateResponse->getContent());
+
+        // 3. Run-seed route runs artisan seed
+        $seedResponse = $this->get('/run-seed');
+        $seedResponse->assertStatus(200);
+        $this->assertStringContainsString('Database Seeder Runner', $seedResponse->getContent());
     }
 
     public function test_vision_mission_crud(): void

@@ -42,7 +42,7 @@
         <div class="h-20 max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <a href="{{ route('home') }}" class="inline-flex items-center">
-                    <img src="https://lh3.googleusercontent.com/aida/AEtjO1X9E2w3eu5Tp-5nDqWqkfn3Pb3EncTNdUDnPDluLQb7x9o1MEA53AqEBwOwY0ein5ym31YytcUF50c6cIoKcxlYWh0KeZFnS5XBr793pphLUpYCiBWL8hssy0EyIxiiOxgLBmt7BSp5bBcFhvpq3XtPk8Sdm9FYPvfQeuTPCzB80PKGjUoU7X9x3UXcC4Oj813d1vfaHAQufwCfPIkm_BczratuU56bUo_p4tLKo_8a1i-kKGDks6bJSmxF" alt="{{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}" class="h-10 w-auto object-contain">
+                    <img src="{{ $profile->logo_url ?? \App\Models\CompanyProfile::DEFAULT_LOGO }}" alt="{{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}" class="h-10 w-auto object-contain">
                 </a>
             </div>
 
@@ -170,7 +170,7 @@
     <footer class="w-full bg-surface-container-lowest border-t border-gray-100 py-10">
         <div class="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <img src="https://lh3.googleusercontent.com/aida/AEtjO1X9E2w3eu5Tp-5nDqWqkfn3Pb3EncTNdUDnPDluLQb7x9o1MEA53AqEBwOwY0ein5ym31YytcUF50c6cIoKcxlYWh0KeZFnS5XBr793pphLUpYCiBWL8hssy0EyIxiiOxgLBmt7BSp5bBcFhvpq3XtPk8Sdm9FYPvfQeuTPCzB80PKGjUoU7X9x3UXcC4Oj813d1vfaHAQufwCfPIkm_BczratuU56bUo_p4tLKo_8a1i-kKGDks6bJSmxF" alt="{{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}" class="h-8 w-auto">
+                <img src="{{ $profile->logo_url ?? \App\Models\CompanyProfile::DEFAULT_LOGO }}" alt="{{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}" class="h-8 w-auto object-contain">
                 <span class="text-xs text-gray-500">&copy; {{ date('Y') }} {{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}. All rights reserved.</span>
             </div>
             <div class="flex items-center gap-6 text-xs text-gray-500">
