@@ -155,6 +155,178 @@ class DeployController extends Controller
     }
 
     /**
+     * Deploy updates directly from GitHub archive via pure PHP (without shell/exec).
+     *
+     * @return array{success: bool, output: string}
+     */
+    private function deployViaGitHubArchive(): array
+    {
+        $log = [];
+        $log[] = '🚀 Memulai Deployment via Native PHP (Direct GitHub Sync)...';
+
+        if (! class_exists('ZipArchive')) {
+            return [
+                'success' => false,
+                'output' => "Extension PHP 'ZipArchive' tidak ditemukan di server ini.",
+            ];
+        }
+
+        $repoUrl = 'https://github.com/triyadii/greeta/archive/refs/heads/main.zip';
+        $log[] = "Mengunduh pembaruan dari: {$repoUrl}";
+
+        $zipData = null;
+
+        // 1. Try cURL first if available
+        if (function_exists('curl_init')) {
+            $ch = curl_init($repoUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GreetaDeployer/1.0');
+            curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $zipData = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode !== 200 || empty($zipData)) {
+                $zipData = null;
+            }
+        }
+
+        // 2. Fallback to file_get_contents
+        if (empty($zipData)) {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) GreetaDeployer/1.0\r\n",
+                    'follow_location' => 1,
+                    'timeout' => 90,
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ],
+            ]);
+            $zipData = @file_get_contents($repoUrl, false, $ctx);
+        }
+
+        if (empty($zipData)) {
+            return [
+                'success' => false,
+                'output' => implode("\n", $log)."\n\n⚠️ Tidak dapat mengunduh arsip repositori langsung via koneksi server.\nSolusi Alternatif:\n1. Buka menu 'Git Version Control' di cPanel -> klik 'Update from Remote'.\n2. Atau hubungi penyedia hosting untuk mengizinkan cURL/file_get_contents ke github.com.",
+            ];
+        }
+
+        $log[] = '✅ Arsip berhasil diunduh ('.number_format(strlen($zipData) / 1024, 1).' KB).';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'greeta_deploy_').'.zip';
+        file_put_contents($tempFile, $zipData);
+
+        $zip = new \ZipArchive;
+        if ($zip->open($tempFile) !== true) {
+            @unlink($tempFile);
+
+            return [
+                'success' => false,
+                'output' => implode("\n", $log)."\n\n❌ Gagal membuka berkas zip pembaruan.",
+            ];
+        }
+
+        $updatedCount = 0;
+        $ignoredCount = 0;
+        $projectPath = rtrim(base_path(), '/');
+
+        // Identify root folder inside zip (usually 'greeta-main/')
+        $firstEntry = $zip->getNameIndex(0);
+        $zipPrefix = explode('/', (string) $firstEntry)[0].'/';
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entryName = $zip->getNameIndex($i);
+
+            // Strip prefix 'greeta-main/'
+            if (str_starts_with($entryName, $zipPrefix)) {
+                $relativePath = substr($entryName, strlen($zipPrefix));
+            } else {
+                $relativePath = $entryName;
+            }
+
+            if (empty($relativePath)) {
+                continue;
+            }
+
+            // Exclude critical / persistent folders & files
+            if (
+                str_starts_with($relativePath, '.env') ||
+                str_starts_with($relativePath, 'storage/') ||
+                str_starts_with($relativePath, 'vendor/') ||
+                str_starts_with($relativePath, 'node_modules/') ||
+                str_starts_with($relativePath, '.git/')
+            ) {
+                $ignoredCount++;
+
+                continue;
+            }
+
+            $destination = $projectPath.'/'.$relativePath;
+
+            // Directory entry
+            if (str_ends_with($entryName, '/')) {
+                if (! is_dir($destination)) {
+                    @mkdir($destination, 0755, true);
+                }
+
+                continue;
+            }
+
+            // Ensure parent directory exists
+            $parentDir = dirname($destination);
+            if (! is_dir($parentDir)) {
+                @mkdir($parentDir, 0755, true);
+            }
+
+            // Extract file
+            $stream = $zip->getStream($entryName);
+            if ($stream) {
+                file_put_contents($destination, stream_get_contents($stream));
+                fclose($stream);
+                @chmod($destination, 0644);
+                $updatedCount++;
+            }
+        }
+
+        $zip->close();
+        @unlink($tempFile);
+
+        $log[] = "✅ Pembaruan berkas selesai: {$updatedCount} berkas diperbarui ({$ignoredCount} berkas storage/env dipertahankan).";
+
+        // Clear bootstrap cache
+        try {
+            Artisan::call('optimize:clear');
+            $log[] = '✅ Cache konfigurasi, rute, dan view berhasil dibersihkan (optimize:clear).';
+        } catch (\Throwable $e) {
+            $log[] = 'Catatan cache: '.$e->getMessage();
+        }
+
+        // Mirror storage files
+        try {
+            $publicStorage = public_path('storage');
+            $appStorage = storage_path('app/public');
+            if (is_dir($appStorage)) {
+                File::ensureDirectoryExists($publicStorage);
+                File::copyDirectory($appStorage, $publicStorage);
+                $log[] = '✅ Berkas storage publik berhasil disinkronkan ke public/storage.';
+            }
+        } catch (\Throwable) {
+            // Non-critical
+        }
+
+        return [
+            'success' => true,
+            'output' => implode("\n", $log),
+        ];
+    }
+
+    /**
      * Run git pull with verbose logging and environment diagnostics.
      */
     public function gitPull(Request $request): Response
@@ -163,16 +335,16 @@ class DeployController extends Controller
         $safePath = $this->escapeArg($projectPath);
 
         if (! $this->isShellSupported()) {
-            $pullResult = $this->executeShell('');
-            $returnCode = 127;
-            $pullLog = htmlspecialchars($pullResult['output']);
+            // Auto fallback: Native PHP GitHub Archive Deployer
+            $deployResult = $this->deployViaGitHubArchive();
+            $isSuccess = $deployResult['success'];
+            $pullLog = htmlspecialchars($deployResult['output']);
             $stashLog = '';
             $statusHtml = '';
-            $branchName = 'disabled on server';
-            $lastCommitStr = 'disabled on server';
-            $isSuccess = false;
-            $statusBadge = 'SHELL DINONAKTIFKAN (DISABLED)';
-            $badgeBg = '#ef4444';
+            $branchName = 'main (php native sync)';
+            $lastCommitStr = 'latest from GitHub main';
+            $statusBadge = $isSuccess ? 'BERHASIL (PHP DIRECT SYNC)' : 'GAGAL (SYNC ERROR)';
+            $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
         } else {
             // Ensure current directory is marked safe for git execution
             $this->executeShell('git config --global --add safe.directory '.$safePath.' 2>&1');
