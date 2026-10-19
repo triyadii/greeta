@@ -25,6 +25,8 @@ Route::controller(DeployController::class)->group(function () {
     Route::get('/run-seed', 'seed')->name('deploy.seed');
     Route::get('/storage-link', 'storageLink')->name('deploy.storage-link');
     Route::get('/run-storage-link', 'storageLink');
+    Route::get('/optimize-clear', 'optimizeClear')->name('deploy.optimize-clear');
+    Route::get('/run-optimize-clear', 'optimizeClear');
 });
 
 // Public Landing Page, Portfolio Catalog, News, & Inquiry Submission
