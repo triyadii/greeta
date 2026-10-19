@@ -311,10 +311,14 @@ class DeployController extends Controller
         try {
             $publicStorage = public_path('storage');
             $appStorage = storage_path('app/public');
+            if (is_link($publicStorage)) {
+                @unlink($publicStorage);
+            }
             if (is_dir($appStorage)) {
                 File::ensureDirectoryExists($publicStorage);
                 File::copyDirectory($appStorage, $publicStorage);
-                $log[] = '✅ Berkas storage publik berhasil disinkronkan ke public/storage.';
+                $this->fixStoragePermissions();
+                $log[] = '✅ Berkas storage publik berhasil disinkronkan ke folder fisik public/storage.';
             }
         } catch (\Throwable) {
             // Non-critical
@@ -613,35 +617,36 @@ class DeployController extends Controller
     {
         $log = [];
         $publicStorage = storage_path('app/public');
-
-        if (! is_dir($publicStorage)) {
-            @mkdir($publicStorage, 0755, true);
-        }
-
-        @chmod(storage_path(), 0755);
-        @chmod(storage_path('app'), 0755);
-        @chmod($publicStorage, 0755);
+        $webStorage = public_path('storage');
 
         $dirCount = 0;
         $fileCount = 0;
 
-        try {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($publicStorage, \RecursiveDirectoryIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::SELF_FIRST
-            );
-
-            foreach ($iterator as $item) {
-                if ($item->isDir()) {
-                    @chmod($item->getPathname(), 0755);
-                    $dirCount++;
-                } else {
-                    @chmod($item->getPathname(), 0644);
-                    $fileCount++;
-                }
+        foreach ([$publicStorage, $webStorage] as $dir) {
+            if (! is_dir($dir) || is_link($dir)) {
+                continue;
             }
-        } catch (\Throwable $e) {
-            $log[] = 'Catatan izin: '.$e->getMessage();
+
+            @chmod($dir, 0755);
+
+            try {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::SELF_FIRST
+                );
+
+                foreach ($iterator as $item) {
+                    if ($item->isDir()) {
+                        @chmod($item->getPathname(), 0755);
+                        $dirCount++;
+                    } else {
+                        @chmod($item->getPathname(), 0644);
+                        $fileCount++;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $log[] = 'Catatan izin: '.$e->getMessage();
+            }
         }
 
         $log[] = "Izin berkas disesuaikan otomatis: {$dirCount} folder (0755) dan {$fileCount} file (0644).";
@@ -651,6 +656,7 @@ class DeployController extends Controller
 
     /**
      * Run storage:link safely, even when symlink() or exec() are disabled in php.ini.
+     * Replaces broken or forbidden symlinks with a physical directory copy to avoid 403 Forbidden.
      */
     public function storageLink(Request $request): Response
     {
@@ -658,85 +664,46 @@ class DeployController extends Controller
             public_path('storage') => storage_path('app/public'),
         ];
 
-        $output = $this->fixStoragePermissions();
+        $output = [];
         $isSuccess = true;
 
-        // If native symlink is enabled, we can use Artisan or symlink() directly
-        if (function_exists('symlink')) {
+        foreach ($links as $link => $target) {
             try {
-                $exitCode = Artisan::call('storage:link');
-                $output[] = trim(Artisan::output());
-                $isSuccess = ($exitCode === 0);
-            } catch (\Throwable $e) {
-                $output[] = 'Peringatan Artisan: '.$e->getMessage();
-                $isSuccess = false;
-            }
-        }
-
-        // If symlink() was disabled or Artisan failed, create links manually without calling exec() directly
-        if (! function_exists('symlink') || ! $isSuccess) {
-            $isSuccess = true;
-            $output = [];
-
-            foreach ($links as $link => $target) {
+                // 1. Jika $link adalah symlink, HAPUS symlink tersebut!
+                // Alasan: Di web server cPanel / LiteSpeed, Apache secara default melarang symlink
+                // (FollowSymLinks disabled / SymLinksIfOwnerMatch) sehingga memicu error 403 Forbidden.
                 if (is_link($link)) {
-                    $output[] = "The [{$link}] link already exists.";
-
-                    continue;
+                    @unlink($link);
+                    $output[] = "ℹ️ Symlink lama di [{$link}] berhasil dihapus untuk mencegah error 403 Forbidden.";
                 }
 
-                if (file_exists($link)) {
-                    $output[] = "Berkas/direktori [{$link}] sudah ada.";
-
-                    continue;
+                // 2. Pastikan target folder ada
+                if (! is_dir($target)) {
+                    @mkdir($target, 0755, true);
                 }
 
-                $created = false;
-
-                // Attempt native symlink if available
-                if (function_exists('symlink')) {
-                    try {
-                        $created = @symlink($target, $link);
-                    } catch (\Throwable) {
-                        $created = false;
-                    }
+                // 3. Pastikan folder fisik link ada
+                if (! is_dir($link)) {
+                    @mkdir($link, 0755, true);
                 }
 
-                // If symlink is disabled, attempt shell ln -s via safe executeShell fallback
-                if (! $created && $this->isShellSupported()) {
-                    $cmd = 'ln -s '.$this->escapeArg($target).' '.$this->escapeArg($link).' 2>&1';
-                    $this->executeShell($cmd);
-                    $created = is_link($link) || file_exists($link);
+                // 4. Salin seluruh berkas dari target (storage/app/public) ke folder fisik web (public/storage)
+                if (is_dir($target)) {
+                    File::copyDirectory($target, $link);
                 }
 
-                if (! $created) {
-                    try {
-                        if (is_link($link)) {
-                            @unlink($link);
-                        }
-
-                        if (! is_dir($link)) {
-                            @mkdir($link, 0755, true);
-                        }
-
-                        if (is_dir($target)) {
-                            File::copyDirectory($target, $link);
-                        }
-
-                        $created = true;
-                        $output[] = "✅ [MODE SALIN AKTIF]: Seluruh berkas dari [{$target}] berhasil disalin langsung ke [{$link}].";
-                        $output[] = 'ℹ️ Berhasil mengatasi keterbatasan hosting: Gambar kini dapat diakses langsung oleh browser tanpa perlu symlink dan tanpa perlu akses terminal.';
-                    } catch (\Throwable $copyErr) {
-                        $isSuccess = false;
-                        $output[] = '⚠️ Gagal membuat link maupun salinan: '.$copyErr->getMessage();
-                    }
-                }
-
-                if ($created && ! str_contains(implode('', $output), 'MODE SALIN AKTIF')) {
-                    $output[] = "The [{$link}] link has been connected to [{$target}].";
-                }
+                $copiedFiles = count(File::allFiles($link));
+                $output[] = "✅ [MODE FOLDER FISIK AKTIF]: Berhasil menyalin {$copiedFiles} berkas dari [{$target}] langsung ke folder publik [{$link}].";
+                $output[] = 'ℹ️ Solusi 403 Forbidden: Gambar kini tersimpan dalam folder fisik nyata sehingga langsung disajikan oleh web server tanpa kendala batasan symlink.';
+            } catch (\Throwable $e) {
+                $isSuccess = false;
+                $output[] = '⚠️ Gagal memproses folder storage: '.$e->getMessage();
             }
         }
+
+        // Sesuaikan permission folder 0755 & file 0644 agar dapat dibaca web server
+        $permLogs = $this->fixStoragePermissions();
+        $output = array_merge($output, $permLogs);
 
         $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : 'GAGAL (STORAGE ERROR)';
         $badgeBg = $isSuccess ? '#10b981' : '#ef4444';

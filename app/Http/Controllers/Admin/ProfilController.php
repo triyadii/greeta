@@ -53,11 +53,21 @@ class ProfilController extends Controller
         if ($request->hasFile('logo')) {
             if ($profile && $profile->logo && Storage::disk('public')->exists($profile->logo)) {
                 Storage::disk('public')->delete($profile->logo);
+                @unlink(public_path('storage/'.$profile->logo));
             }
             $validated['logo'] = $request->file('logo')->store('company', 'public');
+
+            // Mirror to public/storage for hosting without symlink support
+            $dest = public_path('storage/'.$validated['logo']);
+            if (! is_link(public_path('storage'))) {
+                @mkdir(dirname($dest), 0755, true);
+                @copy(storage_path('app/public/'.$validated['logo']), $dest);
+                @chmod($dest, 0644);
+            }
         } elseif ($request->boolean('remove_logo')) {
             if ($profile && $profile->logo && Storage::disk('public')->exists($profile->logo)) {
                 Storage::disk('public')->delete($profile->logo);
+                @unlink(public_path('storage/'.$profile->logo));
             }
             $validated['logo'] = null;
         }

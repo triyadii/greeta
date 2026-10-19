@@ -15,6 +15,7 @@ class BeritaController extends Controller
     public function index(): View
     {
         $news = News::latest()->get();
+
         return view('admin.berita.index', compact('news'));
     }
 
@@ -38,13 +39,20 @@ class BeritaController extends Controller
                 if (count($imagePaths) < 3) {
                     $path = $file->store('news', 'public');
                     $imagePaths[] = $path;
+
+                    $dest = public_path('storage/'.$path);
+                    if (! is_link(public_path('storage'))) {
+                        @mkdir(dirname($dest), 0755, true);
+                        @copy(storage_path('app/public/'.$path), $dest);
+                        @chmod($dest, 0644);
+                    }
                 }
             }
         }
 
         $newsItem = News::create([
             'judul' => $request->judul,
-            'slug' => Str::slug($request->judul) . '-' . Str::random(5),
+            'slug' => Str::slug($request->judul).'-'.Str::random(5),
             'keterangan' => $request->keterangan,
             'gambar' => $imagePaths,
         ]);
@@ -59,6 +67,7 @@ class BeritaController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $newsItem = News::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $newsItem,
@@ -82,8 +91,9 @@ class BeritaController extends Controller
         // Hapus file lama yang tidak dipertahankan
         $oldImages = $newsItem->gambar ?? [];
         foreach ($oldImages as $oldImg) {
-            if (!in_array($oldImg, $imagePaths)) {
+            if (! in_array($oldImg, $imagePaths)) {
                 Storage::disk('public')->delete($oldImg);
+                @unlink(public_path('storage/'.$oldImg));
             }
         }
 
@@ -93,6 +103,13 @@ class BeritaController extends Controller
                 if (count($imagePaths) < 3) {
                     $path = $file->store('news', 'public');
                     $imagePaths[] = $path;
+
+                    $dest = public_path('storage/'.$path);
+                    if (! is_link(public_path('storage'))) {
+                        @mkdir(dirname($dest), 0755, true);
+                        @copy(storage_path('app/public/'.$path), $dest);
+                        @chmod($dest, 0644);
+                    }
                 }
             }
         }
@@ -114,9 +131,10 @@ class BeritaController extends Controller
     {
         $newsItem = News::where('uuid', $uuid)->firstOrFail();
 
-        if (!empty($newsItem->gambar)) {
+        if (! empty($newsItem->gambar)) {
             foreach ($newsItem->gambar as $img) {
                 Storage::disk('public')->delete($img);
+                @unlink(public_path('storage/'.$img));
             }
         }
 

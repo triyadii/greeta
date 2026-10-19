@@ -39,6 +39,14 @@ Route::get('/storage/{path}', function (string $path) {
         abort(404);
     }
 
+    // Auto-mirror to public/storage for future static serving if public/storage is a real folder
+    $dest = public_path('storage/'.$path);
+    if (! is_link(public_path('storage')) && ! file_exists($dest)) {
+        @mkdir(dirname($dest), 0755, true);
+        @copy($realFullPath, $dest);
+        @chmod($dest, 0644);
+    }
+
     return response()->file($realFullPath);
 })->where('path', '.*')->name('storage.fallback');
 

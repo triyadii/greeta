@@ -14,6 +14,7 @@ class PortofolioController extends Controller
     public function index(): View
     {
         $portfolios = Portfolio::latest()->get();
+
         return view('admin.portofolio.index', compact('portfolios'));
     }
 
@@ -37,6 +38,13 @@ class PortofolioController extends Controller
                 if (count($imagePaths) < 3) {
                     $path = $file->store('portfolios', 'public');
                     $imagePaths[] = $path;
+
+                    $dest = public_path('storage/'.$path);
+                    if (! is_link(public_path('storage'))) {
+                        @mkdir(dirname($dest), 0755, true);
+                        @copy(storage_path('app/public/'.$path), $dest);
+                        @chmod($dest, 0644);
+                    }
                 }
             }
         }
@@ -57,6 +65,7 @@ class PortofolioController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $portfolio = Portfolio::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $portfolio,
@@ -80,8 +89,9 @@ class PortofolioController extends Controller
         // Hapus file lama yang tidak dipertahankan
         $oldImages = $portfolio->gambar ?? [];
         foreach ($oldImages as $oldImg) {
-            if (!in_array($oldImg, $imagePaths)) {
+            if (! in_array($oldImg, $imagePaths)) {
                 Storage::disk('public')->delete($oldImg);
+                @unlink(public_path('storage/'.$oldImg));
             }
         }
 
@@ -91,6 +101,13 @@ class PortofolioController extends Controller
                 if (count($imagePaths) < 3) {
                     $path = $file->store('portfolios', 'public');
                     $imagePaths[] = $path;
+
+                    $dest = public_path('storage/'.$path);
+                    if (! is_link(public_path('storage'))) {
+                        @mkdir(dirname($dest), 0755, true);
+                        @copy(storage_path('app/public/'.$path), $dest);
+                        @chmod($dest, 0644);
+                    }
                 }
             }
         }
@@ -113,7 +130,7 @@ class PortofolioController extends Controller
         $portfolio = Portfolio::where('uuid', $uuid)->firstOrFail();
 
         // Hapus file gambar dari storage
-        if (!empty($portfolio->gambar)) {
+        if (! empty($portfolio->gambar)) {
             foreach ($portfolio->gambar as $img) {
                 Storage::disk('public')->delete($img);
             }
