@@ -33,10 +33,10 @@ return new class extends Migration
 
         // Update Users Table to include uuid and role_id
         Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'uuid')) {
+            if (! Schema::hasColumn('users', 'uuid')) {
                 $table->uuid('uuid')->nullable()->unique()->after('id');
             }
-            if (!Schema::hasColumn('users', 'role_id')) {
+            if (! Schema::hasColumn('users', 'role_id')) {
                 $table->foreignId('role_id')->nullable()->constrained('roles')->nullOnDelete()->after('password');
             }
         });

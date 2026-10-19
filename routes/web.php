@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\WilayahController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DeployController;
 use App\Http\Controllers\HomeController;
+use App\Models\CompanyProfile;
 use Illuminate\Support\Facades\Route;
 
 // Deployment & Maintenance utility routes (accessible when SSH is not available in production)
@@ -49,6 +50,31 @@ Route::get('/storage/{path}', function (string $path) {
 
     return response()->file($realFullPath);
 })->where('path', '.*')->name('storage.fallback');
+
+// Dynamic favicon endpoint matching company profile logo
+Route::get('/favicon.ico', function () {
+    $profile = CompanyProfile::first();
+    if ($profile && ! empty($profile->logo)) {
+        if (str_starts_with($profile->logo, 'http://') || str_starts_with($profile->logo, 'https://')) {
+            return redirect($profile->logo);
+        }
+        $storagePath = storage_path('app/public/'.$profile->logo);
+        if (file_exists($storagePath)) {
+            return response()->file($storagePath);
+        }
+        $publicPath = public_path('storage/'.$profile->logo);
+        if (file_exists($publicPath)) {
+            return response()->file($publicPath);
+        }
+    }
+
+    $fallback = public_path('assets/media/logos/favicon.ico');
+    if (file_exists($fallback)) {
+        return response()->file($fallback);
+    }
+
+    abort(404);
+})->name('favicon');
 
 // Public Landing Page, Portfolio Catalog, News, & Inquiry Submission
 Route::get('/', [HomeController::class, 'index'])->name('home');

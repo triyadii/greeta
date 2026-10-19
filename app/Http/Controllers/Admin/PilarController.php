@@ -13,6 +13,7 @@ class PilarController extends Controller
     public function index(): View
     {
         $pillars = Pillar::all();
+
         return view('admin.pilar.index', compact('pillars'));
     }
 
@@ -37,6 +38,7 @@ class PilarController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $pillar = Pillar::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $pillar,

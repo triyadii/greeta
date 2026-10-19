@@ -13,6 +13,7 @@ class PenawaranController extends Controller
     public function index(): View
     {
         $quotations = Quotation::latest()->get();
+
         return view('admin.penawaran.index', compact('quotations'));
     }
 
@@ -40,6 +41,7 @@ class PenawaranController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $quotation = Quotation::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $quotation,

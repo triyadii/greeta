@@ -7,9 +7,7 @@ use App\Models\News;
 use App\Models\Portfolio;
 use App\Models\Quotation;
 use App\Models\Visitor;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller

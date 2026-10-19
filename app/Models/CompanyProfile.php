@@ -26,6 +26,7 @@ class CompanyProfile extends Model
 
     protected $appends = [
         'logo_url',
+        'favicon_url',
     ];
 
     public const DEFAULT_LOGO = 'https://lh3.googleusercontent.com/aida/AEtjO1X9E2w3eu5Tp-5nDqWqkfn3Pb3EncTNdUDnPDluLQb7x9o1MEA53AqEBwOwY0ein5ym31YytcUF50c6cIoKcxlYWh0KeZFnS5XBr793pphLUpYCiBWL8hssy0EyIxiiOxgLBmt7BSp5bBcFhvpq3XtPk8Sdm9FYPvfQeuTPCzB80PKGjUoU7X9x3UXcC4Oj813d1vfaHAQufwCfPIkm_BczratuU56bUo_p4tLKo_8a1i-kKGDks6bJSmxF';
@@ -44,5 +45,21 @@ class CompanyProfile extends Model
         }
 
         return self::DEFAULT_LOGO;
+    }
+
+    /**
+     * Get favicon URL matching company profile logo with fallback.
+     */
+    public function getFaviconUrlAttribute(): string
+    {
+        if (! empty($this->logo)) {
+            if (str_starts_with($this->logo, 'http://') || str_starts_with($this->logo, 'https://')) {
+                return $this->logo;
+            }
+
+            return asset('storage/'.$this->logo);
+        }
+
+        return asset('assets/media/logos/favicon.ico');
     }
 }

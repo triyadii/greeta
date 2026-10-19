@@ -71,7 +71,7 @@ class PublicPagesTest extends TestCase
         $listResponse->assertSee('Percepatan Adopsi Fiber Optic B2B');
         $listResponse->assertSee('Visitor:');
 
-        $detailResponse = $this->get('/berita/' . $news->slug);
+        $detailResponse = $this->get('/berita/'.$news->slug);
         $detailResponse->assertStatus(200);
         $detailResponse->assertSee('Percepatan Adopsi Fiber Optic B2B');
         $detailResponse->assertSee('Ulasan mengenai ekspansi kabel laut');

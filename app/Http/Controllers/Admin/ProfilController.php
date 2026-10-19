@@ -64,12 +64,20 @@ class ProfilController extends Controller
                 @copy(storage_path('app/public/'.$validated['logo']), $dest);
                 @chmod($dest, 0644);
             }
+
+            // Also mirror as public/favicon.ico for static root requests
+            @copy(storage_path('app/public/'.$validated['logo']), public_path('favicon.ico'));
         } elseif ($request->boolean('remove_logo')) {
             if ($profile && $profile->logo && Storage::disk('public')->exists($profile->logo)) {
                 Storage::disk('public')->delete($profile->logo);
                 @unlink(public_path('storage/'.$profile->logo));
             }
             $validated['logo'] = null;
+
+            // Revert public/favicon.ico to default
+            if (file_exists(public_path('assets/media/logos/favicon.ico'))) {
+                @copy(public_path('assets/media/logos/favicon.ico'), public_path('favicon.ico'));
+            }
         }
 
         if ($profile) {

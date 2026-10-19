@@ -13,6 +13,7 @@ class WilayahController extends Controller
     public function index(): View
     {
         $areas = OperationalArea::latest()->get();
+
         return view('admin.wilayah.index', compact('areas'));
     }
 
@@ -37,6 +38,7 @@ class WilayahController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $area = OperationalArea::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $area,

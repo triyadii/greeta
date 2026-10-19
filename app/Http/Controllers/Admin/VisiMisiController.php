@@ -13,6 +13,7 @@ class VisiMisiController extends Controller
     public function index(): View
     {
         $visionMissions = VisionMission::latest()->get();
+
         return view('admin.visi-misi.index', compact('visionMissions'));
     }
 
@@ -38,6 +39,7 @@ class VisiMisiController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $item = VisionMission::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $item,

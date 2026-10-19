@@ -15,6 +15,7 @@ class MenuController extends Controller
     {
         $menus = Menu::orderBy('urutan')->get();
         $roles = Role::orderBy('namaRole')->get();
+
         return view('admin.menus.index', compact('menus', 'roles'));
     }
 
@@ -40,6 +41,7 @@ class MenuController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $menu = Menu::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $menu,

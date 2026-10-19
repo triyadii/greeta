@@ -42,7 +42,7 @@ class LoginController extends Controller
         $user = User::where('email', $credentials['email'])->first();
 
         // Verifikasi keberadaan user dan kecocokan hash password
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Email atau password yang Anda masukkan salah.',

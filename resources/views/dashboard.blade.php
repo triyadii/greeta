@@ -24,7 +24,10 @@ License: For each use you must have a valid license purchased only from above li
 		<meta property="og:url" content="https://keenthemes.com/metronic" />
 		<meta property="og:site_name" content="Metronic by Keenthemes" />
 		<link rel="canonical" href="http://preview.keenthemes.comindex.html" />
-		<link rel="shortcut icon" href="assets/media/logos/favicon.ico" />
+		<link rel="shortcut icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="icon" type="image/x-icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="apple-touch-icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
 		<!--begin::Fonts(mandatory for all pages)-->
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
 		<!--end::Fonts-->

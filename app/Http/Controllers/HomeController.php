@@ -67,7 +67,7 @@ class HomeController extends Controller
         if ($search = $request->input('q')) {
             $query->where(function ($q) use ($search) {
                 $q->where('namaProject', 'like', "%{$search}%")
-                  ->orWhere('keterangan', 'like', "%{$search}%");
+                    ->orWhere('keterangan', 'like', "%{$search}%");
             });
         }
 
@@ -89,7 +89,7 @@ class HomeController extends Controller
         if ($search = $request->input('q')) {
             $query->where(function ($q) use ($search) {
                 $q->where('judul', 'like', "%{$search}%")
-                  ->orWhere('keterangan', 'like', "%{$search}%");
+                    ->orWhere('keterangan', 'like', "%{$search}%");
             });
         }
 

@@ -5,6 +5,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>{{ $item->judul }} - {{ $profile->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}</title>
+    <link rel="shortcut icon" href="{{ $companyProfile?->favicon_url ?? ($profile->favicon_url ?? asset('assets/media/logos/favicon.ico')) }}" />
+    <link rel="icon" type="image/x-icon" href="{{ $companyProfile?->favicon_url ?? ($profile->favicon_url ?? asset('assets/media/logos/favicon.ico')) }}" />
+    <link rel="icon" href="{{ $companyProfile?->favicon_url ?? ($profile->favicon_url ?? asset('assets/media/logos/favicon.ico')) }}" />
+    <link rel="apple-touch-icon" href="{{ $companyProfile?->favicon_url ?? ($profile->favicon_url ?? asset('assets/media/logos/favicon.ico')) }}" />
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">

@@ -13,6 +13,7 @@ class RoleController extends Controller
     public function index(): View
     {
         $roles = Role::withCount('users')->orderBy('namaRole')->get();
+
         return view('admin.roles.index', compact('roles'));
     }
 
@@ -37,6 +38,7 @@ class RoleController extends Controller
     public function show(string $uuid): JsonResponse
     {
         $role = Role::where('uuid', $uuid)->firstOrFail();
+
         return response()->json([
             'success' => true,
             'data' => $role,
@@ -48,7 +50,7 @@ class RoleController extends Controller
         $role = Role::where('uuid', $uuid)->firstOrFail();
 
         $validated = $request->validate([
-            'namaRole' => ['required', 'string', 'max:255', 'unique:roles,namaRole,' . $role->id],
+            'namaRole' => ['required', 'string', 'max:255', 'unique:roles,namaRole,'.$role->id],
         ], [
             'namaRole.required' => 'Nama role wajib diisi.',
             'namaRole.unique' => 'Nama role sudah terdaftar.',

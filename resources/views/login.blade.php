@@ -2,11 +2,14 @@
 <html lang="id">
 	<!--begin::Head-->
 	<head>
-		<title>Login Administrator - PT. Gretta Solutions Network</title>
+		<title>Login Administrator - {{ $companyProfile?->namaPerusahaan ?? 'PT. Gretta Solutions Network' }}</title>
 		<meta charset="utf-8" />
 		<meta name="csrf-token" content="{{ csrf_token() }}">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="shortcut icon" href="{{ asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="shortcut icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="icon" type="image/x-icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
+		<link rel="apple-touch-icon" href="{{ $companyProfile?->favicon_url ?? asset('assets/media/logos/favicon.ico') }}" />
 		<!--begin::Fonts-->
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
 		<!--end::Fonts-->

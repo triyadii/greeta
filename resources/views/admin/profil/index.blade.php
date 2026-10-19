@@ -67,7 +67,7 @@
                                             <span class="badge {{ $profile->logo ? 'badge-light-success' : 'badge-light-primary' }} fw-bold">
                                                 {{ $profile->logo ? 'Logo Kustom Diunggah' : 'Logo Bawaan (Default)' }}
                                             </span>
-                                            <div class="text-muted fs-8 mt-1">Muncul di header, footer website publik, dan sidebar admin</div>
+                                            <div class="text-muted fs-8 mt-1">Muncul di favicon tab browser, header & footer website publik, serta sidebar admin</div>
                                         </div>
                                     </div>
                                 </td>

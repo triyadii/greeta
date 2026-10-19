@@ -137,6 +137,7 @@ class AdminCrudTest extends TestCase
         $this->assertNotNull($profile->logo);
         Storage::disk('public')->assertExists($profile->logo);
         $this->assertStringContainsString('storage/'.$profile->logo, $profile->logo_url);
+        $this->assertStringContainsString('storage/'.$profile->logo, $profile->favicon_url);
 
         // Reset/remove logo
         $responseRemove = $this->post(route('admin.profil.store'), [
@@ -148,6 +149,25 @@ class AdminCrudTest extends TestCase
         $profile->refresh();
         $this->assertNull($profile->logo);
         $this->assertEquals(CompanyProfile::DEFAULT_LOGO, $profile->logo_url);
+        $this->assertStringContainsString('favicon.ico', $profile->favicon_url);
+    }
+
+    public function test_pages_render_profile_favicon(): void
+    {
+        // Public home landing page
+        $homeResponse = $this->get(route('home'));
+        $homeResponse->assertStatus(200);
+        $homeResponse->assertSee('rel="shortcut icon"', false);
+        $homeResponse->assertSee('rel="icon"', false);
+
+        // Login page
+        $loginResponse = $this->get(route('login'));
+        $loginResponse->assertStatus(200);
+        $loginResponse->assertSee('rel="shortcut icon"', false);
+
+        // Favicon route responds
+        $faviconResponse = $this->get('/favicon.ico');
+        $this->assertTrue(in_array($faviconResponse->getStatusCode(), [200, 302]));
     }
 
     public function test_deployment_routes_accessible_without_auth(): void
