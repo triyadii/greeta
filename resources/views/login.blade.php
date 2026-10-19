@@ -62,25 +62,17 @@
 								</div>
 								<!--end::Heading-->
 
-								<div class="alert alert-dismissible bg-light-primary border border-primary d-flex flex-column flex-sm-row p-5 mb-8">
-									<i class="ki-duotone ki-information-5 fs-2hx text-primary me-4 mb-5 mb-sm-0"><span class="path1"></span><span class="path2"></span><span class="path3"></span></i>
-									<div class="d-flex flex-column">
-										<h5 class="mb-1 text-primary">Kredensial Default Superadmin:</h5>
-										<span class="fs-7 text-gray-700">Email: <strong>admin@greeta.id</strong> | Password: <strong>password123</strong></span>
-									</div>
-								</div>
-
 								<!--begin::Input group-->
 								<div class="fv-row mb-8">
 									<label class="form-label fs-6 fw-bolder text-dark">Email Administrator</label>
-									<input type="email" placeholder="admin@greeta.id" name="email" value="admin@greeta.id" autocomplete="off" class="form-control form-control-lg bg-transparent" required />
+									<input type="email" placeholder="Masukkan email administrator" name="email" value="{{ old('email') }}" autocomplete="username" class="form-control form-control-lg bg-transparent" required />
 								</div>
 								<!--end::Input group-->
 
 								<!--begin::Input group-->
 								<div class="fv-row mb-6">
 									<label class="form-label fs-6 fw-bolder text-dark">Kata Sandi (Password)</label>
-									<input type="password" placeholder="••••••••" name="password" value="password123" autocomplete="off" class="form-control form-control-lg bg-transparent" required />
+									<input type="password" placeholder="Masukkan kata sandi" name="password" autocomplete="current-password" class="form-control form-control-lg bg-transparent" required />
 								</div>
 								<!--end::Input group-->
 

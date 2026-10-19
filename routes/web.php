@@ -29,6 +29,19 @@ Route::controller(DeployController::class)->group(function () {
     Route::get('/run-optimize-clear', 'optimizeClear');
 });
 
+// Serve public storage files directly if symlink fails or is forbidden by web server
+Route::get('/storage/{path}', function (string $path) {
+    $fullPath = storage_path('app/public/'.$path);
+    $basePath = realpath(storage_path('app/public'));
+    $realFullPath = realpath($fullPath);
+
+    if (! $realFullPath || ! str_starts_with($realFullPath, $basePath) || is_dir($realFullPath)) {
+        abort(404);
+    }
+
+    return response()->file($realFullPath);
+})->where('path', '.*')->name('storage.fallback');
+
 // Public Landing Page, Portfolio Catalog, News, & Inquiry Submission
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/portofolio', [HomeController::class, 'portofolio'])->name('public.portofolio');

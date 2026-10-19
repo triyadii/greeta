@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 
 class DeployController extends Controller
 {
@@ -432,6 +433,51 @@ class DeployController extends Controller
     }
 
     /**
+     * Fix permissions recursively for storage directories (0755) and files (0644).
+     *
+     * @return array<int, string>
+     */
+    private function fixStoragePermissions(): array
+    {
+        $log = [];
+        $publicStorage = storage_path('app/public');
+
+        if (! is_dir($publicStorage)) {
+            @mkdir($publicStorage, 0755, true);
+        }
+
+        @chmod(storage_path(), 0755);
+        @chmod(storage_path('app'), 0755);
+        @chmod($publicStorage, 0755);
+
+        $dirCount = 0;
+        $fileCount = 0;
+
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($publicStorage, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $item) {
+                if ($item->isDir()) {
+                    @chmod($item->getPathname(), 0755);
+                    $dirCount++;
+                } else {
+                    @chmod($item->getPathname(), 0644);
+                    $fileCount++;
+                }
+            }
+        } catch (\Throwable $e) {
+            $log[] = 'Catatan izin: '.$e->getMessage();
+        }
+
+        $log[] = "Izin berkas disesuaikan otomatis: {$dirCount} folder (0755) dan {$fileCount} file (0644).";
+
+        return $log;
+    }
+
+    /**
      * Run storage:link safely, even when symlink() or exec() are disabled in php.ini.
      */
     public function storageLink(Request $request): Response
@@ -440,7 +486,7 @@ class DeployController extends Controller
             public_path('storage') => storage_path('app/public'),
         ];
 
-        $output = [];
+        $output = $this->fixStoragePermissions();
         $isSuccess = true;
 
         // If native symlink is enabled, we can use Artisan or symlink() directly
@@ -491,26 +537,36 @@ class DeployController extends Controller
                     $created = is_link($link) || file_exists($link);
                 }
 
-                if ($created) {
-                    $output[] = "The [{$link}] link has been connected to [{$target}].";
-                } else {
-                    $isSuccess = false;
-                    $output[] = "⚠️ GAGAL membuat symbolic link untuk [{$link}].";
-                    $output[] = "Penyebab: Fungsi 'symlink' dan eksekusi shell dinonaktifkan di server hosting (disable_functions pada php.ini).";
-                }
-            }
+                if (! $created) {
+                    try {
+                        if (is_link($link)) {
+                            @unlink($link);
+                        }
 
-            if (! $isSuccess) {
-                $output[] = "\nPanduan Mengatasi di cPanel / Hosting:";
-                $output[] = "1. Buka cPanel hosting Anda -> menu 'Select PHP Version' (atau MultiPHP INI Editor).";
-                $output[] = "2. Buka tab 'Options' -> cari baris 'disable_functions'.";
-                $output[] = "3. Hapus 'symlink' dan 'exec' dari daftar disable_functions, lalu simpan.";
-                $output[] = '4. Atau buat symlink lewat Terminal cPanel / Cron Job:';
-                $output[] = '   ln -s '.$this->escapeArg(storage_path('app/public')).' '.$this->escapeArg(public_path('storage'));
+                        if (! is_dir($link)) {
+                            @mkdir($link, 0755, true);
+                        }
+
+                        if (is_dir($target)) {
+                            File::copyDirectory($target, $link);
+                        }
+
+                        $created = true;
+                        $output[] = "✅ [MODE SALIN AKTIF]: Seluruh berkas dari [{$target}] berhasil disalin langsung ke [{$link}].";
+                        $output[] = 'ℹ️ Berhasil mengatasi keterbatasan hosting: Gambar kini dapat diakses langsung oleh browser tanpa perlu symlink dan tanpa perlu akses terminal.';
+                    } catch (\Throwable $copyErr) {
+                        $isSuccess = false;
+                        $output[] = '⚠️ Gagal membuat link maupun salinan: '.$copyErr->getMessage();
+                    }
+                }
+
+                if ($created && ! str_contains(implode('', $output), 'MODE SALIN AKTIF')) {
+                    $output[] = "The [{$link}] link has been connected to [{$target}].";
+                }
             }
         }
 
-        $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : 'GAGAL (SYMLINK DISABLED)';
+        $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : 'GAGAL (STORAGE ERROR)';
         $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
         $outputHtml = htmlspecialchars(implode("\n", $output));
 
