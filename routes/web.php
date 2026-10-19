@@ -23,6 +23,8 @@ Route::controller(DeployController::class)->group(function () {
     Route::get('/migrate', 'migrate')->name('deploy.migrate');
     Route::get('/run-migrate', 'migrate');
     Route::get('/run-seed', 'seed')->name('deploy.seed');
+    Route::get('/storage-link', 'storageLink')->name('deploy.storage-link');
+    Route::get('/run-storage-link', 'storageLink');
 });
 
 // Public Landing Page, Portfolio Catalog, News, & Inquiry Submission
