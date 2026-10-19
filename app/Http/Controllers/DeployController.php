@@ -9,6 +9,34 @@ use Illuminate\Support\Facades\Artisan;
 class DeployController extends Controller
 {
     /**
+     * Check if any shell execution function is enabled.
+     */
+    private function isShellSupported(): bool
+    {
+        return function_exists('exec')
+            || function_exists('shell_exec')
+            || function_exists('proc_open')
+            || function_exists('system')
+            || function_exists('passthru');
+    }
+
+    /**
+     * Safely escape a shell argument without crashing if escapeshellarg is disabled.
+     */
+    private function escapeArg(string $arg): string
+    {
+        if (function_exists('escapeshellarg')) {
+            try {
+                return escapeshellarg($arg);
+            } catch (\Throwable) {
+                // Fallthrough
+            }
+        }
+
+        return "'".str_replace("'", "'\\''", $arg)."'";
+    }
+
+    /**
      * Safely execute a shell command with fallback support across multiple PHP execution functions.
      *
      * @return array{output: string, exit_code: int, method: string}
@@ -113,11 +141,11 @@ class DeployController extends Controller
 
         return [
             'output' => "⚠️ EKSEKUSI SHELL TIDAK TERSEDIA PADA SERVER INI.\n\n"
-                ."Fungsi eksekusi shell (exec, shell_exec, proc_open, system, passthru) dinonaktifkan di konfigurasi PHP hosting (disable_functions pada php.ini).\n\n"
+                ."Fungsi eksekusi shell (exec, shell_exec, proc_open, system, passthru, escapeshellarg) dinonaktifkan di konfigurasi PHP hosting (disable_functions pada php.ini).\n\n"
                 ."Solusi untuk Git Pull:\n"
                 ."1. Jika memiliki akses cPanel / Cloud Hosting:\n"
-                ."   Buka menu 'Select PHP Version' -> tab 'Options' -> cari baris 'disable_functions' -> hapus kata 'exec' dari daftar tersebut.\n"
-                ."2. Jika tidak bisa mengaktifkan exec:\n"
+                ."   Buka menu 'Select PHP Version' -> tab 'Options' -> cari baris 'disable_functions' -> hapus kata 'exec' dan 'escapeshellarg' dari daftar tersebut.\n"
+                ."2. Jika tidak bisa mengaktifkan fungsi shell:\n"
                 ."   Lakukan 'git pull' melalui Terminal SSH atau menu 'Git Version Control' di cPanel hosting Anda.\n\n"
                 .'3. Menu perintah di bawah (Migrate, Seed, Storage Link, Optimize Clear) TETAP BISA DIJALANKAN karena diproses langsung secara internal oleh PHP Laravel.',
             'exit_code' => 127,
@@ -131,48 +159,53 @@ class DeployController extends Controller
     public function gitPull(Request $request): Response
     {
         $projectPath = base_path();
+        $safePath = $this->escapeArg($projectPath);
 
-        // Ensure current directory is marked safe for git execution
-        $this->executeShell('git config --global --add safe.directory '.escapeshellarg($projectPath).' 2>&1');
-
-        // Optional stash before pull if requested
-        $stashOutput = '';
-        if ($request->boolean('stash')) {
-            $stashResult = $this->executeShell('cd '.escapeshellarg($projectPath).' && git stash 2>&1');
-            $stashOutput = $stashResult['output'];
-        }
-
-        // Run git pull
-        $pullResult = $this->executeShell('cd '.escapeshellarg($projectPath).' && git pull 2>&1');
-        $returnCode = $pullResult['exit_code'];
-        $pullOutput = $pullResult['output'];
-
-        // Branch and commit diagnostics
-        $branchName = 'unknown';
-        $lastCommitStr = 'N/A';
-        $statusLog = '';
-
-        if ($pullResult['method'] !== 'none') {
-            $branchResult = $this->executeShell('cd '.escapeshellarg($projectPath).' && git branch --show-current 2>&1');
-            $branchName = ! empty(trim($branchResult['output'])) ? trim($branchResult['output']) : 'unknown';
-
-            $commitResult = $this->executeShell('cd '.escapeshellarg($projectPath)." && git log -1 --pretty=format:'%h - %s (%ci)' 2>&1");
-            $lastCommitStr = ! empty(trim($commitResult['output'])) ? trim($commitResult['output']) : 'N/A';
-
-            $statusResult = $this->executeShell('cd '.escapeshellarg($projectPath).' && git status -s 2>&1');
-            $statusLog = trim($statusResult['output']);
-        } else {
+        if (! $this->isShellSupported()) {
+            $pullResult = $this->executeShell('');
+            $returnCode = 127;
+            $pullLog = htmlspecialchars($pullResult['output']);
+            $stashLog = '';
+            $statusHtml = '';
             $branchName = 'disabled on server';
             $lastCommitStr = 'disabled on server';
+            $isSuccess = false;
+            $statusBadge = 'SHELL DINONAKTIFKAN (DISABLED)';
+            $badgeBg = '#ef4444';
+        } else {
+            // Ensure current directory is marked safe for git execution
+            $this->executeShell('git config --global --add safe.directory '.$safePath.' 2>&1');
+
+            // Optional stash before pull if requested
+            $stashOutput = '';
+            if ($request->boolean('stash')) {
+                $stashResult = $this->executeShell('cd '.$safePath.' && git stash 2>&1');
+                $stashOutput = $stashResult['output'];
+            }
+
+            // Run git pull
+            $pullResult = $this->executeShell('cd '.$safePath.' && git pull 2>&1');
+            $returnCode = $pullResult['exit_code'];
+            $pullOutput = $pullResult['output'];
+
+            // Branch and commit diagnostics
+            $branchResult = $this->executeShell('cd '.$safePath.' && git branch --show-current 2>&1');
+            $branchName = ! empty(trim($branchResult['output'])) ? trim($branchResult['output']) : 'unknown';
+
+            $commitResult = $this->executeShell('cd '.$safePath." && git log -1 --pretty=format:'%h - %s (%ci)' 2>&1");
+            $lastCommitStr = ! empty(trim($commitResult['output'])) ? trim($commitResult['output']) : 'N/A';
+
+            $statusResult = $this->executeShell('cd '.$safePath.' && git status -s 2>&1');
+            $statusLog = trim($statusResult['output']);
+
+            $isSuccess = ($returnCode === 0);
+            $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : "GAGAL (EXIT CODE: {$returnCode})";
+            $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
+
+            $pullLog = htmlspecialchars($pullOutput);
+            $stashLog = htmlspecialchars($stashOutput);
+            $statusHtml = htmlspecialchars($statusLog);
         }
-
-        $isSuccess = ($returnCode === 0);
-        $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : ($pullResult['method'] === 'none' ? 'SHELL DINONAKTIFKAN (DISABLED)' : "GAGAL (EXIT CODE: {$returnCode})");
-        $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
-
-        $pullLog = htmlspecialchars($pullOutput);
-        $stashLog = htmlspecialchars($stashOutput);
-        $statusHtml = htmlspecialchars($statusLog);
 
         $html = "<!DOCTYPE html>
 <html lang='id'>
@@ -259,10 +292,16 @@ class DeployController extends Controller
      */
     public function migrate(Request $request): Response
     {
-        $exitCode = Artisan::call('migrate', ['--force' => true]);
-        $output = Artisan::output();
+        try {
+            $exitCode = Artisan::call('migrate', ['--force' => true]);
+            $output = Artisan::output();
+            $isSuccess = ($exitCode === 0);
+        } catch (\Throwable $e) {
+            $exitCode = 1;
+            $output = "Terjadi kesalahan saat menjalankan migrate:\n".$e->getMessage();
+            $isSuccess = false;
+        }
 
-        $isSuccess = ($exitCode === 0);
         $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : "GAGAL (EXIT CODE: {$exitCode})";
         $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
         $outputHtml = htmlspecialchars($output);
@@ -325,10 +364,16 @@ class DeployController extends Controller
      */
     public function seed(Request $request): Response
     {
-        $exitCode = Artisan::call('db:seed', ['--force' => true]);
-        $output = Artisan::output();
+        try {
+            $exitCode = Artisan::call('db:seed', ['--force' => true]);
+            $output = Artisan::output();
+            $isSuccess = ($exitCode === 0);
+        } catch (\Throwable $e) {
+            $exitCode = 1;
+            $output = "Terjadi kesalahan saat menjalankan seeder:\n".$e->getMessage();
+            $isSuccess = false;
+        }
 
-        $isSuccess = ($exitCode === 0);
         $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : "GAGAL (EXIT CODE: {$exitCode})";
         $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
         $outputHtml = htmlspecialchars($output);
@@ -387,17 +432,87 @@ class DeployController extends Controller
     }
 
     /**
-     * Run artisan storage:link.
+     * Run storage:link safely, even when symlink() or exec() are disabled in php.ini.
      */
     public function storageLink(Request $request): Response
     {
-        $exitCode = Artisan::call('storage:link');
-        $output = Artisan::output();
+        $links = config('filesystems.links') ?? [
+            public_path('storage') => storage_path('app/public'),
+        ];
 
-        $isSuccess = ($exitCode === 0);
-        $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : "GAGAL (EXIT CODE: {$exitCode})";
+        $output = [];
+        $isSuccess = true;
+
+        // If native symlink is enabled, we can use Artisan or symlink() directly
+        if (function_exists('symlink')) {
+            try {
+                $exitCode = Artisan::call('storage:link');
+                $output[] = trim(Artisan::output());
+                $isSuccess = ($exitCode === 0);
+            } catch (\Throwable $e) {
+                $output[] = 'Peringatan Artisan: '.$e->getMessage();
+                $isSuccess = false;
+            }
+        }
+
+        // If symlink() was disabled or Artisan failed, create links manually without calling exec() directly
+        if (! function_exists('symlink') || ! $isSuccess) {
+            $isSuccess = true;
+            $output = [];
+
+            foreach ($links as $link => $target) {
+                if (is_link($link)) {
+                    $output[] = "The [{$link}] link already exists.";
+
+                    continue;
+                }
+
+                if (file_exists($link)) {
+                    $output[] = "Berkas/direktori [{$link}] sudah ada.";
+
+                    continue;
+                }
+
+                $created = false;
+
+                // Attempt native symlink if available
+                if (function_exists('symlink')) {
+                    try {
+                        $created = @symlink($target, $link);
+                    } catch (\Throwable) {
+                        $created = false;
+                    }
+                }
+
+                // If symlink is disabled, attempt shell ln -s via safe executeShell fallback
+                if (! $created && $this->isShellSupported()) {
+                    $cmd = 'ln -s '.$this->escapeArg($target).' '.$this->escapeArg($link).' 2>&1';
+                    $this->executeShell($cmd);
+                    $created = is_link($link) || file_exists($link);
+                }
+
+                if ($created) {
+                    $output[] = "The [{$link}] link has been connected to [{$target}].";
+                } else {
+                    $isSuccess = false;
+                    $output[] = "⚠️ GAGAL membuat symbolic link untuk [{$link}].";
+                    $output[] = "Penyebab: Fungsi 'symlink' dan eksekusi shell dinonaktifkan di server hosting (disable_functions pada php.ini).";
+                }
+            }
+
+            if (! $isSuccess) {
+                $output[] = "\nPanduan Mengatasi di cPanel / Hosting:";
+                $output[] = "1. Buka cPanel hosting Anda -> menu 'Select PHP Version' (atau MultiPHP INI Editor).";
+                $output[] = "2. Buka tab 'Options' -> cari baris 'disable_functions'.";
+                $output[] = "3. Hapus 'symlink' dan 'exec' dari daftar disable_functions, lalu simpan.";
+                $output[] = '4. Atau buat symlink lewat Terminal cPanel / Cron Job:';
+                $output[] = '   ln -s '.$this->escapeArg(storage_path('app/public')).' '.$this->escapeArg(public_path('storage'));
+            }
+        }
+
+        $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : 'GAGAL (SYMLINK DISABLED)';
         $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
-        $outputHtml = htmlspecialchars($output);
+        $outputHtml = htmlspecialchars(implode("\n", $output));
 
         $html = "<!DOCTYPE html>
 <html lang='id'>
@@ -432,7 +547,7 @@ class DeployController extends Controller
         </div>
 
         <div style='color: #94a3b8; font-size: 13px; margin-bottom: 12px;'>
-            Perintah yang dijalankan: <code>php artisan storage:link</code> | Waktu: ".date('Y-m-d H:i:s T')."
+            Perintah: <code>php artisan storage:link</code> (Safe Runner) | Waktu: ".date('Y-m-d H:i:s T')."
         </div>
 
         <pre>{$outputHtml}</pre>
@@ -457,10 +572,15 @@ class DeployController extends Controller
      */
     public function optimizeClear(Request $request): Response
     {
-        $exitCode = Artisan::call('optimize:clear');
-        $output = Artisan::output();
-
-        $isSuccess = ($exitCode === 0);
+        try {
+            $exitCode = Artisan::call('optimize:clear');
+            $output = Artisan::output();
+            $isSuccess = ($exitCode === 0);
+        } catch (\Throwable $e) {
+            $exitCode = 1;
+            $output = "Terjadi kesalahan saat menjalankan optimize:clear:\n".$e->getMessage();
+            $isSuccess = false;
+        }
         $statusBadge = $isSuccess ? 'BERHASIL (SUCCESS)' : "GAGAL (EXIT CODE: {$exitCode})";
         $badgeBg = $isSuccess ? '#10b981' : '#ef4444';
         $outputHtml = htmlspecialchars($output);
